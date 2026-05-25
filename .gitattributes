@@ -1,0 +1,5 @@
+# Exclude development and test files from the Package Control distribution
+tests/ export-ignore
+.gitignore export-ignore
+Makefile export-ignore
+.gitattributes export-ignore
