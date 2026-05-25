@@ -1,0 +1,74 @@
+# SYNTAX TEST "Packages/Assembly-6801-6301-68HC11/Assembly-6801-6301-68HC11.sublime-syntax"
+# <- source.mc6801
+
+;--------------------------------------------------------------------
+ include filename-1.asm comment
+#^^^^^^^ support.function.directive.misc
+#        ^^^^^^^^^^^^^^ constant.other
+#                       ^^^^^^^ comment.line
+
+;--------------------------------------------------------------------
+ includebin filename-2.asm comment
+#^^^^^^^^^^ support.function.directive.misc
+#           ^^^^^^^^^^^^^^ constant.other
+#                          ^^^^^^^ comment.line
+
+;--------------------------------------------------------------------
+ use filename
+#^^^ support.function.directive.misc
+#    ^^^^^^^^ constant.other
+
+
+;--------------------------------------------------------------------
+ end expr comment
+#^^^ support.function.directive.misc
+#    ^^^^ constant.other
+#         ^^^^^^^ comment.line
+
+ end $2000+$200 comment
+#^^^ support.function.directive.misc
+#    ^^^^^ constant.numeric.hexadecimal
+#         ^ keyword.operator.arithmetic
+#          ^^^^ constant.numeric.hexadecimal
+#               ^^^^^^^ comment.line
+
+
+;--------------------------------------------------------------------
+ error "Testing" comment
+#^^^^^ support.function.directive.misc
+#      ^ punctuation.definition.string.begin
+#      ^^^^^^^^^ string.quoted.double
+#              ^ punctuation.definition.string.end
+
+ error Testing string
+#^^^^^ support.function.directive.misc
+#      ^^^^^^^^^^^^^^ string.unquoted
+
+
+;--------------------------------------------------------------------
+ warning "Testing" comment
+#^^^^^^^ support.function.directive.misc
+#        ^ punctuation.definition.string.begin
+#        ^^^^^^^^^ string.quoted.double
+#                ^ punctuation.definition.string.end
+#                  ^^^^^^^ comment.line
+
+
+;--------------------------------------------------------------------
+ .module "Testing"
+#^^^^^^^ support.function.directive.misc
+#        ^ punctuation.definition.string.begin
+#        ^^^^^^^^^ string.quoted.double
+#                ^ punctuation.definition.string.end
+
+
+;--------------------------------------------------------------------
+ nam   program_name
+#^^^ support.function.directive.misc
+#      ^^^^^^^^^^^^ string.unquoted
+
+
+;--------------------------------------------------------------------
+ ttl   program module
+#^^^ support.function.directive.misc
+#      ^^^^^^^^^^^^^^ string.unquoted

@@ -1,0 +1,672 @@
+%YAML 1.2
+---
+# http://www.sublimetext.com/docs/3/syntax.html
+# http://www.sublimetext.com/docs/3/scope_naming.html
+
+name: Assembly 6801/6301/68HC11
+
+file_extensions:
+  - asm
+  - src
+  - s
+
+scope: source.mc6801
+
+variables:
+  num_bin: (?:[01][01]*)
+  num_oct: (?:[0-7][0-7]*)
+  num_dec: (?:\d\d*)
+  num_hex: (?:\h\h*)
+  symbol_id: (?:[A-Za-z\.\@\_!\?][A-Za-z0-9\.\@\$\_\?]*)|([0-9](?!\S))
+  filename_id: (?:\S+(?!\S))
+  all_registers: (?i)ccr?|pc|sp|[abdxys]
+  pragma_options:  '(?ix:
+                      (no)?(
+                        dollar(not)?local|
+                        index0tonone|
+                        undefextern|
+                        cescapes|
+                        (importundef)?export|
+                        pcaspcr|
+                        shadow|
+                        list|
+                        autobranchlength|
+                        symbol(no)?case|
+                        condundefzero|
+                        6800compat|
+                        forwardrefmax|
+                        testmode|
+                        c[cdt]?|
+                        qrts|
+                        m80ext|
+                        6801(conv)?|
+                        6301(conv)?|
+                        68hc11(conv)?|
+                        newsource|
+                        oldsource|
+                        operandsizewarning|
+                        emuext|
+                        output|
+                        expandcond
+                      )
+                    )'
+
+contexts:
+  pop-on-eol:
+    - match: $
+      pop: true
+
+  skip-white-spaces:
+    - match: \s*
+
+  match-comments:
+    - match: (\s*)(([*;]).*)$
+      captures:
+        2: comment.line.mc6801
+        3: punctuation.definition.comment.mc6801
+      pop: true
+
+  comments-eol:
+    - match: (\s*)(([*;]?).*)$
+      captures:
+        2: comment.line.mc6801
+        3: punctuation.definition.comment.mc6801
+      pop: true
+
+  main:
+    # Process normal listing
+    - match: ''
+      push: column_1
+
+  column_1:
+    - match: ''
+      pop: true
+
+    # Line begins with a comment
+    - match: ([*;#]).*$
+      scope: comment.line.mc6801
+      captures:
+        1: punctuation.definition.comment.mc6801
+      pop: true
+
+    # Label
+    - match: '({{symbol_id}})(:?)(\s*)'
+      captures:
+        1: entity.name.type.constant.mc6801
+      set:
+        - include: match-structures
+        - include: match-macros
+        - include: column_2
+
+    # Blank column one
+    - match: \s+
+      set: column_2
+
+    - match: .*$
+      scope: invalid.illegal
+      pop: true
+
+  column_2:
+    - include: match-mnemonics
+    - include: match-directives
+    - include: match-pragmas
+    - include: match-comments
+    - include: match-emulator-extensions
+    - include: match-macro-label
+
+    # No match in column #2 - skip to next line
+    - match: .*$
+      pop: true
+
+  match-mnemonics:
+    - include: match-mnemonics-inherent
+    - include: match-mnemonics-branches
+    - include: match-mnemonics-jump
+    - include: match-mnemonics-immediate-direct-indexed-extended
+    - include: match-mnemonics-direct-indexed-extended
+    - include: match-mnemonics-bit-operations
+
+  match-mnemonics-inherent:
+    # Addressing mode: Inherent
+    - match: |-
+        (?ix:
+             aba|abx|aby|cba|cl[ci]|clv|des|dex|dey|fdiv|idiv|ins|inx|iny|mul|nop|psh[abxy]|pul[abxy]|rti|rts|sba|se[cvi]|slp|stop|swi|tab|tap|tba|test|tpa|tsx|tsy|txs|tys|wai|xgd[xy]|
+             ((as|ls|ro)[lr]|neg|clr|com|dec|inc|tst)[ab]|
+             (asl|lsl|lsr)d
+        )(?!\S)
+      scope: keyword.operator.mc6801
+      set: comments-eol
+
+  match-mnemonics-branches:
+    # Branch instructions
+    - match: (?i)(b([cv][cs]|eq|gt|h[is]|l[ost]|r[an]|mi|pl|sr|[gnl]e))(?!\S)\s*
+      captures:
+        1: keyword.operator.mc6801
+      set:
+        - match: \<
+          scope: constant.other.mc6801
+          set: comments-eol
+        - match: \>
+          scope: constant.other.mc6801
+          set: comments-eol
+        - include: match-expr
+        - match: ''
+          set: comments-eol
+        - include: pop-on-eol
+
+  match-mnemonics-jump:
+    # Jump instructions (JMP, JSR)
+    - match: (?i)(jmp|jsr)(?!\S)\s*
+      captures:
+        1: keyword.operator.mc6801
+      set:
+        - include: match-address-direct
+        - include: match-address-index
+        - include: match-address-extended
+        - include: match-expr
+        - match: \S*
+          scope: invalid.illegal.variable.language.register.mc6801
+          set: comments-eol
+        - include: pop-on-eol
+
+  match-mnemonics-immediate-direct-indexed-extended:
+    # Addressing modes: Immediate, Direct, Indexed and Extended
+    - match: |-
+        (?ix:
+             (
+              adc[ab]|
+              add[abd]|
+              and[ab]|
+              bit[ab]|
+              cmp[ab]|
+              cp[dxy]|
+              eor[ab]|
+              ld[abd]|
+              lda[ab]|
+              lds|
+              ld[xy]|
+              ora[ab]|
+              sbc[ab]|
+              sub[abd]
+             )
+        )(?!\S)\s*
+      captures:
+        1: keyword.operator.mc6801
+      set:
+        - include: match-address-immediate
+        - include: match-address-direct
+        - include: match-address-index
+        - include: match-address-extended
+        - include: match-expr
+        - match: ''
+          set: comments-eol
+        - match: \S*
+          scope: invalid.illegal.variable.language.register.mc6801
+          set: comments-eol
+        - include: pop-on-eol
+
+  match-mnemonics-direct-indexed-extended:
+    # Addressing modes: Direct, Indexed and Extended
+    - match: |-
+        (?ix:
+            (
+              st[abd]|
+              sta[ab]|
+              sts|
+              st[xy]|
+              as[lr]|
+              clr|
+              com|
+              dec|
+              inc|
+              lsl|
+              lsr|
+              neg|
+              rol|
+              ror|
+              tst
+            )
+        )(?!\S)\s*
+      captures:
+        1: keyword.operator.mc6801
+      set:
+        - include: match-address-direct
+        - include: match-address-index
+        - include: match-address-extended
+        - include: match-expr
+        - match: ''
+          set: comments-eol
+        - match: \S*
+          scope: invalid.illegal.variable.language.register.mc6801
+          set: comments-eol
+        - include: pop-on-eol
+
+  match-mnemonics-bit-operations:
+    # HD6301: AIM, OIM, EIM, TIM
+    - match: (?i)([aeot]im)(?!\S)\s*
+      captures:
+        1: keyword.operator.mc6801
+      set:
+        - include: match-address-immediate
+        - match: \,
+          scope: operator.separator.mc6801
+          set:
+            - include: match-address-direct
+            - include: match-address-index
+            - include: match-address-extended
+            - include: match-expr
+            - match: ''
+              set: comments-eol
+            - include: pop-on-eol
+        - include: pop-on-eol
+
+    # 68HC11: BSET, BCLR
+    - match: (?i)(b(set|clr))(?!\S)\s*
+      captures:
+        1: keyword.operator.mc6801
+      set:
+        - include: match-address-direct
+        - include: match-address-index
+        - include: match-address-extended
+        - include: match-expr
+        - match: \,
+          scope: operator.separator.mc6801
+          set:
+            - include: match-address-immediate
+            - include: match-expr
+            - match: ''
+              set: comments-eol
+            - include: pop-on-eol
+        - include: match-address-immediate
+        - include: match-expr
+        - match: ''
+          set: comments-eol
+        - include: pop-on-eol
+
+    # 68HC11: BRSET, BRCLR
+    - match: (?i)(br(set|clr))(?!\S)\s*
+      captures:
+        1: keyword.operator.mc6801
+      set:
+        - include: match-address-direct
+        - include: match-address-index
+        - include: match-address-extended
+        - include: match-expr
+        - match: \,
+          scope: operator.separator.mc6801
+          set:
+            - include: match-address-immediate
+            - include: match-expr
+            - match: \,
+              scope: operator.separator.mc6801
+              set:
+                - include: match-expr
+                - match: ''
+                  set: comments-eol
+                - include: pop-on-eol
+            - include: pop-on-eol
+        - include: pop-on-eol
+
+  match-address-immediate:
+    - match: \#
+      scope: keyword.operator.immediate.mc6801
+      set:
+        - include: match-expr
+        - include: pop-on-eol
+        - match: ''
+          set: comments-eol
+
+  match-address-direct:
+    # 8-bit offset forced by < prefix
+    - match: \<
+      scope: keyword.operator.direct.mc6801
+      set:
+        - include: match-expr
+        - match: (?i)(?=,[xy])
+          set: highlight-registers
+        - include: pop-on-eol
+        - match: \S*
+          set: comments-eol
+
+  match-address-extended:
+    # 16-bit offset forced by > prefix
+    - match: \>
+      scope: keyword.operator.extended.mc6801
+      set:
+        - include: match-expr
+        - match: (?i)(?=,[xy])
+          set: highlight-registers
+        - include: pop-on-eol
+        - match: \S*
+          set: comments-eol
+
+  match-address-index:
+    - match: |-
+        (?ix:
+            (?=,[xy])
+        )
+      set: highlight-registers
+
+  highlight-registers:
+    - match: '{{all_registers}}'
+      scope: variable.language.register.mc6801
+    - include: match-comma
+    - match: \s
+      set: comments-eol
+    - include: pop-on-eol
+
+  match-pragmas:
+    - match: (?i)(pragma|opt|\*pragma(push|pop)?)(?!\S)\s*
+      captures:
+        1: support.function.directive.assembler.mc6801
+      set:
+        - match: '{{pragma_options}}(?=[,\s])'
+          scope: keyword.operator.mc6801
+        - include: match-comma
+        - match: ''
+          set: comments-eol
+        - include: pop-on-eol
+
+  match-directives:
+    # data directives with expr (Form Constants) - highlighted as instructions
+    - match: (?i)(f[cdq]b)(?!\S)\s*
+      captures:
+        1: keyword.operator.mc6801
+      set:
+        - include: match-expr
+        - include: match-comma
+        - include: pop-on-eol
+        - match: ''
+          set: comments-eol
+
+    # data directives with expr
+    - match: (?i)([zr]m[bdq]|d[bw]|\.(d[bsw]|4?byte|word|quad|blkb|rs))(?!\S)\s*
+      captures:
+        1: storage.type.mc6801
+      set:
+        - include: match-expr
+        - include: match-comma
+        - include: pop-on-eol
+        - match: ''
+          set: comments-eol
+
+    # data directives with strings
+    - match: (?i)(fc[cnsz]|\.(asci[isz]|str[sz]?))(?!\S)\s*
+      captures:
+        1: storage.type.mc6801
+      set: match-strings
+
+    # data directives with reserve zeroed bytes
+    - match: (?i)(fill|rzb|zmb|bsz|ds)(?!\S)\s*
+      captures:
+        1: storage.type.mc6801
+      set:
+        - include: match-expr
+        - include: match-comma
+        - include: pop-on-eol
+        - match: ''
+          set: comments-eol
+
+    # Address Definition
+    - match: (?i)((re)?org|equ|set(dp)?|align)(?!\S)\s*
+      captures:
+        1: support.function.address.mc6801
+      set:
+        - include: match-expr
+        - match: ''
+          set: comments-eol
+        - include: pop-on-eol
+
+    # Conditional assembly with expr
+    - match: (?i)(if(eq|ne|ge|gt|lt|le|def|ndef)?)(?!\S)\s*
+      captures:
+        1: support.function.conditional.mc6801
+      set:
+        - include: match-expr
+        - match: ''
+          set: comments-eol
+        - include: pop-on-eol
+
+    # Conditional assembly with pragma
+    - match: (?i)(if(pragma|opt))(?!\S)\s*
+      captures:
+        1: support.function.conditional.mc6801
+      set:
+        - match: '{{pragma_options}}'
+          scope: keyword.operator.mc6801
+          set: comments-eol
+        - include: pop-on-eol
+
+    # Conditional assembly
+    - match: (?i)else|endc(?!\S)
+      scope: support.function.conditional.mc6801
+      set: comments-eol
+
+    # Conditional assembly (ccasm)
+    - match: (?i)(end(if|p)|ifp[12]|cond)(?!\S)
+      scope: support.function.conditional.mc6801
+      set: comments-eol
+
+    # Filenames
+    - match: (?i)(include(bin)?|use)(?!\S)\s*
+      captures:
+        1: support.function.directive.misc.mc6801
+      set:
+        - match: '{{filename_id}}'
+          scope: constant.other.mc6801
+        - include: match-filename
+        - match: ''
+          set: comments-eol
+        - include: pop-on-eol
+
+    # Miscelaneous Directives
+    - match: (?i)(end)(?!\S)\s*
+      captures:
+        1: support.function.directive.misc.mc6801
+      set:
+        - include: match-expr
+        - match: ''
+          set: comments-eol
+        - include: pop-on-eol
+
+    # Misc directives with string
+    - match: (?i)(error|warning)(?!\S)\s*
+      captures:
+        1: support.function.directive.misc.mc6801
+      set: match-strings
+    - match: (?i)(.module)(?!\S)\s*
+      captures:
+        1: support.function.directive.misc.mc6801
+      set: match-strings
+    - match: (?i)(nam|ttl)(?!\S)\s*
+      captures:
+        1: support.function.directive.misc.mc6801
+      set: match-strings
+
+    # Preprocessor addon directives
+    - match: (?i)(repeat)(?!\S)\s*
+      captures:
+        1: support.function.directive.addon.mc6801
+      set:
+        - include: match-expr
+        - include: comments-eol
+    - match: (?i)(endrepeat)(?!\S)
+      captures:
+        1: support.function.directive.addon.mc6801
+      set: comments-eol
+
+    # end statement for macros and structures
+    - include: match-end-macros
+    - include: match-end-structures
+
+  match-macro-label:
+    - match: ({{symbol_id}})
+      scope: constant.other.mc6801
+      set: comments-eol
+
+  match-macros:
+    - match: (?i)(macro)(?!\S)((\s+)(noexpand)(?!\S))?
+      captures:
+        1: support.function.directive.macro.mc6801
+        4: support.function.directive.macro.mc6801
+      set: comments-eol
+
+  match-end-macros:
+    - match: (?i)endm(?!\S)
+      scope: support.function.directive.macro.mc6801
+      set: comments-eol
+
+  match-macro-reference:
+    - match: (\\)(\d?)
+      captures:
+        1: punctuation.definition.macro.mc6801
+        2: variable.language.macro.mc6801
+
+  match-structures:
+    - match: (?i)struct(?!\S)
+      scope: support.function.directive.structure.mc6801
+      set: comments-eol
+
+  match-end-structures:
+    - match: (?i)ends(truct)?(?!\S)
+      scope: support.function.directive.structure.mc6801
+      set: comments-eol
+
+  match-emulator-extensions:
+    # MAME extensions
+    - match: '(?i)break|log(?!\S)'
+      scope: support.function.directive.mc6801
+      set: comments-eol
+
+  match-expr:
+    - include: match-integers
+    - include: match-operators
+    - include: match-parens
+    - include: match-sizeof
+    - include: match-labels
+    - include: match-macro-reference
+    - include: match-characters
+
+  match-integers:
+    - include: match-binary-integer
+    - include: match-octal-integer
+    - include: match-hex-integer
+    - include: match-decimal-integer
+
+  match-binary-integer:
+    - match: '(\%){{num_bin}}'
+      scope: constant.numeric.binary.mc6801
+      captures:
+        1: punctuation.definition.numeric.binary.mc6801
+    - match: '{{num_bin}}([bB])'
+      scope: constant.numeric.binary.mc6801
+      captures:
+        1: punctuation.definition.numeric.binary.mc6801
+
+  match-octal-integer:
+    - match: '(\@){{num_oct}}'
+      scope: constant.numeric.octal.mc6801
+      captures:
+        1: punctuation.definition.numeric.octal.mc6801
+    - match: '{{num_oct}}([oqOQ])'
+      scope: constant.numeric.octal.mc6801
+      captures:
+        1: punctuation.definition.numeric.octal.mc6801
+
+  match-hex-integer:
+    - match: '(\$|0[Xx]){{num_hex}}'
+      scope: constant.numeric.hexadecimal.mc6801
+      captures:
+        1: punctuation.definition.numeric.hexadecimal.mc6801
+    - match: '{{num_hex}}([hH])'
+      scope: constant.numeric.hexadecimal.mc6801
+      captures:
+        1: punctuation.definition.numeric.hexadecimal.mc6801
+
+  match-decimal-integer:
+    - match: '(\&)?{{num_dec}}'
+      scope: constant.numeric.decimal.mc6801
+      captures:
+        1: punctuation.definition.numeric.decimal.mc6801
+
+  match-operators:
+    - match: <<|>>|&&|\|\|
+      scope: keyword.operator.arithmetic.mc6801
+    - match: \*
+      scope: keyword.operator.arithmetic.mc6801
+    - match: \+|\-|/|%|\||\^|\~|!|\&
+      scope: keyword.operator.arithmetic.mc6801
+
+  match-parens:
+    - match: \(
+      scope: punctuation.section.parens.begin.mc6801
+      push:
+        - match: \)
+          scope: punctuation.section.parens.end.mc6801
+          pop: true
+        - include: pop-on-eol
+        - include: match-expr
+
+  match-comma:
+    - match: \,
+      scope: operator.separator.mc6801
+
+  match-characters:
+    - match: \'
+      scope: punctuation.definition.string.begin.mc6801
+      push:
+        - meta_scope: string.quoted.single.mc6801
+        - match: \S(\'?)
+          captures:
+            1: punctuation.definition.string.end.mc6801
+          pop: true
+        - include: pop-on-eol
+    - match: \"
+      scope: punctuation.definition.string.begin.mc6801
+      push:
+        - meta_scope: string.quoted.double.mc6801
+        - match: \S\S(\"?)
+          captures:
+            1: punctuation.definition.string.end.mc6801
+          pop: true
+        - include: pop-on-eol
+
+  match-labels:
+    - match: '{{symbol_id}}'
+      scope: constant.other.mc6801
+
+  match-sizeof:
+    - match: (?i)sizeof(\b)
+      scope: support.function.directive.structure.mc6801
+      push:
+        - match: \{
+          scope: punctuation.section.parens.begin.mc6801
+          set:
+            - match: \}
+              scope: punctuation.section.parens.end.mc6801
+              pop: true
+            - include: match-expr
+            - include: pop-on-eol
+        - include: pop-on-eol
+
+  match-strings:
+    - match: \"
+      scope: punctuation.definition.string.begin.mc6801
+      set:
+        - meta_scope: string.quoted.double.mc6801
+        - match: \"
+          scope: punctuation.definition.string.end.mc6801
+          set: comments-eol
+        - include: pop-on-eol
+    - match: \'
+      scope: punctuation.definition.string.begin.mc6801
+      set:
+        - meta_scope: string.quoted.single.mc6801
+        - match: \'
+          scope: punctuation.definition.string.end.mc6801
+          set: comments-eol
+        - include: pop-on-eol
+    - match: .*$
+      scope: string.unquoted.mc6801
+      pop: true
+    - include: pop-on-eol
