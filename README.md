@@ -2,7 +2,7 @@
 
 [![The MIT License](https://img.shields.io/badge/license-MIT-brightgreen.svg)](http://opensource.org/licenses/MIT)
 
-A [Sublime Text][Sublime] syntax highlighting package for the Motorola 6801, Hitachi 6301/6303, and Motorola 68HC11 Assembly languages.
+A [Sublime Text][Sublime] syntax highlighting package for the Motorola 6801/6803, Hitachi 6301/6303, and Motorola 68HC11 Assembly languages.
 
 ### Installation
 
